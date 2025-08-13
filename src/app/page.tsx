@@ -210,9 +210,6 @@ document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e
 }
 
 async function performCapture(url: string, type: CaptureType): Promise<CaptureResult> {
-  if (type === "html" && process.env.BYEPASS_NO_PUPPETEER === "1") {
-    return await performFetchCapture(url);
-  }
   try {
     const puppeteer = (await import("puppeteer")).default;
     const executablePath =
@@ -283,32 +280,11 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
       await browser.close();
     }
   } catch (err) {
-    if (type === "html") {
-      return await performFetchCapture(url);
-    }
     throw err;
   }
 }
 
-async function performFetchCapture(url: string): Promise<CaptureResult> {
-  const res = await fetchWithTimeout(url, {
-    redirect: "follow",
-    headers: { "user-agent": ARCHIVER_USER_AGENT, accept: "text/html,*/*" },
-    timeoutMs: 15000,
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error("Fetch failed");
-  const ctype = res.headers.get("content-type") || "";
-  if (!ctype.includes("text/html")) throw new Error("Not HTML content");
-  const html = await res.text();
-  const snapshot = buildSnapshotHtml(html, url);
-  return {
-    dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,
-    contentType: "text/html; charset=utf-8",
-    fileName: "archive.html",
-    htmlText: snapshot,
-  };
-}
+// No fetch-based fallback; Puppeteer is required
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const sp = await searchParams;
