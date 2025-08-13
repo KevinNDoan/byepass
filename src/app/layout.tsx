@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Byepass Archiver",
-  description: "Capture publicly accessible pages while respecting robots.txt and noarchive.",
+  title: "Byepass",
+  description: "Get past any wall. Just copy and paste.",
 };
 
 export default function RootLayout({
