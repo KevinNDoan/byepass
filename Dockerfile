@@ -37,13 +37,13 @@ RUN apt-get update && apt-get install -y \
   libvulkan1 \
   && rm -rf /var/lib/apt/lists/*
 
-# Use apt Chromium instead of downloading one; prefer /usr/bin/chromium
-ENV PUPPETEER_SKIP_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Cache directory for Puppeteer's managed browser
+ENV PUPPETEER_CACHE_DIR=/usr/local/share/puppeteer
 
 COPY package*.json ./
-# Ensure Puppeteer installs its scripts without attempting to download Chromium
 RUN npm ci --include=dev
+# Pre-install a Chromium build managed by Puppeteer so executablePath() works
+RUN npx --yes puppeteer browsers install chromium
 
 COPY . .
 RUN npm run build

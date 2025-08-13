@@ -217,7 +217,9 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
       "/usr/bin/chromium",
       "/usr/bin/chromium-browser",
       process.env.PUPPETEER_EXECUTABLE_PATH,
-      (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.(),
+      (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.({
+        cacheDir: process.env.PUPPETEER_CACHE_DIR || undefined,
+      } as any),
     ].filter(Boolean) as string[];
 
     const existence = candidates.map((p) => {
