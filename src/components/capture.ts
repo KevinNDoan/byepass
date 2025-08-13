@@ -211,7 +211,8 @@ export async function performCapture(
 ): Promise<CaptureResult> {
   const puppeteer = (await import("puppeteer")).default;
   const executablePath =
-    process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer as any).executablePath?.();
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
   const browser = await puppeteer.launch({
     headless: true,
     executablePath,

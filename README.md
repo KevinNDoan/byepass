@@ -1,36 +1,81 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Byepass
 
-## Getting Started
+Archiving viewer for the modern web. Paste a URL and get a clean, script-free snapshot you can read and navigate without popups, overlays, or heavy client code.
 
-First, run the development server:
+> Use responsibly. Only archive content you have the right to access. Respect site terms and laws in your jurisdiction.
+
+## Features
+
+- Script-free HTML snapshots with a minimal banner that links to the original URL
+- Automatic cleanup for common overlays, cookie/consent modals, and scroll locks
+- Safe rendering in a sandboxed iframe
+- Preserves relative links via an injected `<base>`; link clicks reload inside Byepass
+- Fast captures using Puppeteer with JavaScript disabled and non-essential requests blocked
+- Dynamic page metadata (title + favicon) pulled from the target page
+
+Note: The capture engine supports screenshot (PNG) and PDF under the hood, though the UI currently captures HTML snapshots.
+
+## Quickstart
+
+Requirements: Node 18+ (Node 20 recommended)
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open `http://localhost:3000` and paste any URL.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. The server opens the target URL in headless Chrome (Puppeteer) with JavaScript disabled for a lightweight, static snapshot.
+2. Non-essential resource types (scripts, fonts, XHR, etc.) are blocked to speed up loads.
+3. The resulting HTML is post-processed:
+   - Content-Security-Policy meta tags are removed
+   - All inline scripts and event handlers are stripped
+   - A `<base>` tag is injected so relative links resolve correctly
+   - A small banner is added for context, and a script enables in-view navigation
+4. The final document is served as a `data:text/html` and rendered in a sandboxed iframe.
 
-## Learn More
+## Usage tips
 
-To learn more about Next.js, take a look at the following resources:
+- Many pages will render fine without JavaScript. Pages that strictly require JS may be incomplete.
+- Lazy-loaded media that relies on JS may not appear in the snapshot.
+- Inside a snapshot, link clicks will open the new page inside Byepass automatically.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Configuration
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Puppeteer: By default uses the Chromium bundled with Puppeteer. In some environments (e.g., certain hosts), set `PUPPETEER_EXECUTABLE_PATH` to a system Chrome/Chromium binary.
+- Timeouts: Navigation and request timeouts are set to 30s by default.
 
-## Deploy on Vercel
+## Scripts
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+# Start dev server (Next.js 15)
+npm run dev
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# Build production
+npm run build
+
+# Start production server
+npm run start
+
+# Lint
+npm run lint
+```
+
+## Project structure
+
+```
+src/
+  app/
+    page.tsx                # Server component: runs capture and renders snapshot or the form
+  components/
+    CaptureForm.tsx         # URL input and navigation
+    FullscreenSnapshot.tsx  # Sandboxed iframe viewer
+    capture.ts              # Capture helpers (Puppeteer + HTML transformation)
+```
+
+## Ethics and legal
+
+Byepass is provided for educational and personal use. Do not archive content you’re not allowed to access. Some sites disallow archiving or scraping via robots.txt or headers; ensure compliance with the site’s terms and applicable laws.

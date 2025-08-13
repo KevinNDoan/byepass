@@ -211,7 +211,9 @@ document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e
 
 async function performCapture(url: string, type: CaptureType): Promise<CaptureResult> {
   const puppeteer = (await import("puppeteer")).default;
-  const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || (puppeteer as any).executablePath?.();
+  const executablePath =
+    process.env.PUPPETEER_EXECUTABLE_PATH ||
+    (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
   const browser = await puppeteer.launch({
     headless: true,
     executablePath,
@@ -243,7 +245,7 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
     });
     try {
       await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    } catch (navErr) {
+    } catch {
       throw new Error("Navigation timed out or failed");
     }
     // Give the page a brief moment to settle for more consistent captures
@@ -284,13 +286,10 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
   const typeParam = "html"
 
   let result: CaptureResult | null = null;
-  let error: string | null = null;
 
   try {
     result = await performCapture(urlParam, typeParam);
-  } catch (e: unknown) {
-    error = e instanceof Error ? e.message : "Capture failed";
-  }
+  } catch {}
 
   if (result && result.contentType.startsWith("text/html")) {
     return <FullscreenSnapshot dataUrl={result.dataUrl} html={result.htmlText} />;
