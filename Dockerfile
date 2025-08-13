@@ -48,5 +48,7 @@ COPY . .
 RUN npm run build
 
 EXPOSE 3000
-CMD ["npm", "run", "start", "--", "-p", "3000"]
+# Render provides $PORT; bind Next.js to it
+ENV PORT=3000
+CMD ["sh", "-lc", "npm run start -- -p ${PORT}"]
 
