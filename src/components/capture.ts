@@ -215,9 +215,7 @@ export async function performCapture(
   const executablePath =
     systemChromePath ||
     process.env.PUPPETEER_EXECUTABLE_PATH ||
-    (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.({
-      cacheDir: process.env.PUPPETEER_CACHE_DIR || undefined,
-    } as any);
+    (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
   const browser = await puppeteer.launch({
     headless: true,
     executablePath,
