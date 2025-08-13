@@ -212,9 +212,22 @@ document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e
 async function performCapture(url: string, type: CaptureType): Promise<CaptureResult> {
   try {
     const puppeteer = (await import("puppeteer")).default;
-    const executablePath =
-      process.env.PUPPETEER_EXECUTABLE_PATH ||
-      (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
+    const { existsSync } = await import("node:fs");
+    const candidates = [
+      "/usr/bin/chromium",
+      "/usr/bin/chromium-browser",
+      process.env.PUPPETEER_EXECUTABLE_PATH,
+      (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.(),
+    ].filter(Boolean) as string[];
+
+    const existence = candidates.map((p) => {
+      try { return [p, existsSync(p)] as const; } catch { return [p, false] as const; }
+    });
+    console.log("Puppeteer executable candidates:", existence);
+    const executablePath = existence.find(([, ok]) => ok)?.[0];
+    if (!executablePath) {
+      throw new Error(`No Chromium/Chrome executable found. Tried: ${existence.map(([p, ok]) => `${p}(${ok ? 'exists' : 'missing'})`).join(', ')}`);
+    }
     const browser = await puppeteer.launch({
       headless: true,
       executablePath,

@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install system deps for Chromium
 RUN apt-get update && apt-get install -y \
-  chromium \
+  chromium chromium-common chromium-driver \
   ca-certificates \
   fonts-liberation \
   libasound2 \
@@ -42,6 +42,7 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 COPY package*.json ./
+# Ensure Puppeteer installs its scripts without attempting to download Chromium
 RUN npm ci --include=dev
 
 COPY . .
