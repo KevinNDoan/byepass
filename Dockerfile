@@ -37,9 +37,9 @@ RUN apt-get update && apt-get install -y \
   libvulkan1 \
   && rm -rf /var/lib/apt/lists/*
 
-# Use apt Chromium instead of downloading one
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+# Use apt Chromium instead of downloading one; prefer /usr/bin/chromium
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 COPY package*.json ./
 RUN npm ci --include=dev
@@ -48,7 +48,8 @@ COPY . .
 RUN npm run build
 
 EXPOSE 3000
-# Render provides $PORT; bind Next.js to it
-ENV PORT=3000
-CMD ["sh", "-lc", "npm run start -- -p ${PORT}"]
+# Render provides $PORT; bind Next.js to it on all interfaces
+ENV HOST=0.0.0.0 \
+    PORT=3000
+CMD ["sh", "-lc", "npm run start -- -p ${PORT} -H ${HOST}"]
 

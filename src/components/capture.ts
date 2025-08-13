@@ -210,7 +210,10 @@ export async function performCapture(
   type: CaptureType
 ): Promise<CaptureResult> {
   const puppeteer = (await import("puppeteer")).default;
+  const { existsSync } = await import("node:fs");
+  const systemChromePath = ["/usr/bin/chromium", "/usr/bin/chromium-browser"].find((p) => existsSync(p));
   const executablePath =
+    systemChromePath ||
     process.env.PUPPETEER_EXECUTABLE_PATH ||
     (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
   const browser = await puppeteer.launch({
