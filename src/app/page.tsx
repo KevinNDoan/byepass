@@ -292,11 +292,15 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
   const typeParam = "html"
 
   let result: CaptureResult | null = null;
+  let error: string | null = null;
 
   if (urlParam && isHttpUrl(urlParam)) {
     try {
       result = await performCapture(urlParam, typeParam);
-    } catch {}
+    } catch (e: unknown) {
+      error = e instanceof Error ? e.message : "Capture failed";
+      console.error("Capture error", e);
+    }
   }
 
   if (result && result.contentType.startsWith("text/html")) {
@@ -318,6 +322,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
         </svg>
 
         <p className="text-zinc-200 select-none">Copy and paste a link to get past any wall</p>
+        {error ? (
+          <p className="mt-3 text-red-300 text-sm max-w-screen-sm text-center">{error}</p>
+        ) : null}
       </header>
 
       <Image
