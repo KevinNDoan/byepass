@@ -210,74 +210,104 @@ document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e
 }
 
 async function performCapture(url: string, type: CaptureType): Promise<CaptureResult> {
-  const puppeteer = (await import("puppeteer")).default;
-  const executablePath =
-    process.env.PUPPETEER_EXECUTABLE_PATH ||
-    (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
-  const browser = await puppeteer.launch({
-    headless: true,
-    executablePath,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
-  });
+  if (type === "html" && process.env.BYEPASS_NO_PUPPETEER === "1") {
+    return await performFetchCapture(url);
+  }
   try {
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    );
-    // Disable JavaScript execution during navigation and rendering
-    await page.setJavaScriptEnabled(false);
-    page.setDefaultNavigationTimeout(30000);
-    page.setDefaultTimeout(30000);
-    await page.setRequestInterception(true);
-    page.on("request", (request) => {
-      const blocked = new Set([
-        "media",
-        "font",
-        "script",
-        "xhr",
-        "fetch",
-        "websocket",
-        "eventsource",
-        "manifest",
-      ]);
-      if (blocked.has(request.resourceType())) request.abort();
-      else request.continue();
+    const puppeteer = (await import("puppeteer")).default;
+    const executablePath =
+      process.env.PUPPETEER_EXECUTABLE_PATH ||
+      (puppeteer as import("puppeteer").PuppeteerNode).executablePath?.();
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath,
+      args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage", "--disable-gpu"],
     });
     try {
-      await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    } catch {
-      throw new Error("Navigation timed out or failed");
-    }
-    // Give the page a brief moment to settle for more consistent captures
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+      const page = await browser.newPage();
+      await page.setUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+      );
+      // Disable JavaScript execution during navigation and rendering
+      await page.setJavaScriptEnabled(false);
+      page.setDefaultNavigationTimeout(30000);
+      page.setDefaultTimeout(30000);
+      await page.setRequestInterception(true);
+      page.on("request", (request) => {
+        const blocked = new Set([
+          "media",
+          "font",
+          "script",
+          "xhr",
+          "fetch",
+          "websocket",
+          "eventsource",
+          "manifest",
+        ]);
+        if (blocked.has(request.resourceType())) request.abort();
+        else request.continue();
+      });
+      try {
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+      } catch {
+        throw new Error("Navigation timed out or failed");
+      }
+      // Give the page a brief moment to settle for more consistent captures
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    if (type === "screenshot") {
-      const buf = await page.screenshot({ fullPage: true, type: "png" });
+      if (type === "screenshot") {
+        const buf = await page.screenshot({ fullPage: true, type: "png" });
+        return {
+          dataUrl: `data:image/png;base64,${Buffer.from(buf).toString("base64")}`,
+          contentType: "image/png",
+          fileName: "archive.png",
+        };
+      }
+      if (type === "pdf") {
+        const buf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
+        return {
+          dataUrl: `data:application/pdf;base64,${Buffer.from(buf).toString("base64")}`,
+          contentType: "application/pdf",
+          fileName: "archive.pdf",
+        };
+      }
+      const html = await page.content();
+      const snapshot = buildSnapshotHtml(html, url);
       return {
-        dataUrl: `data:image/png;base64,${Buffer.from(buf).toString("base64")}`,
-        contentType: "image/png",
-        fileName: "archive.png",
+        dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,
+        contentType: "text/html; charset=utf-8",
+        fileName: "archive.html",
+        htmlText: snapshot,
       };
+    } finally {
+      await browser.close();
     }
-    if (type === "pdf") {
-      const buf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
-      return {
-        dataUrl: `data:application/pdf;base64,${Buffer.from(buf).toString("base64")}`,
-        contentType: "application/pdf",
-        fileName: "archive.pdf",
-      };
+  } catch (err) {
+    if (type === "html") {
+      return await performFetchCapture(url);
     }
-    const html = await page.content();
-    const snapshot = buildSnapshotHtml(html, url);
-    return {
-      dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,
-      contentType: "text/html; charset=utf-8",
-      fileName: "archive.html",
-      htmlText: snapshot,
-    };
-  } finally {
-    await browser.close();
+    throw err;
   }
+}
+
+async function performFetchCapture(url: string): Promise<CaptureResult> {
+  const res = await fetchWithTimeout(url, {
+    redirect: "follow",
+    headers: { "user-agent": ARCHIVER_USER_AGENT, accept: "text/html,*/*" },
+    timeoutMs: 15000,
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Fetch failed");
+  const ctype = res.headers.get("content-type") || "";
+  if (!ctype.includes("text/html")) throw new Error("Not HTML content");
+  const html = await res.text();
+  const snapshot = buildSnapshotHtml(html, url);
+  return {
+    dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,
+    contentType: "text/html; charset=utf-8",
+    fileName: "archive.html",
+    htmlText: snapshot,
+  };
 }
 
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
@@ -287,9 +317,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ [
 
   let result: CaptureResult | null = null;
 
-  try {
-    result = await performCapture(urlParam, typeParam);
-  } catch {}
+  if (urlParam && isHttpUrl(urlParam)) {
+    try {
+      result = await performCapture(urlParam, typeParam);
+    } catch {}
+  }
 
   if (result && result.contentType.startsWith("text/html")) {
     return <FullscreenSnapshot dataUrl={result.dataUrl} html={result.htmlText} />;
