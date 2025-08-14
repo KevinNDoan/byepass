@@ -244,7 +244,6 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
       await page.setJavaScriptEnabled(false);
       await page.evaluateOnNewDocument(() => {
         try {
-          // @ts-ignore
           const _navigator = window.navigator;
           Object.defineProperty(_navigator, 'webdriver', { get: () => undefined });
           Object.defineProperty(_navigator, 'languages', { get: () => ['en-US', 'en'] });

@@ -242,8 +242,7 @@ export async function performCapture(
     await page.evaluateOnNewDocument(() => {
       try {
         // Pretend to be not headless
-        // @ts-ignore
-        const _navigator = window.navigator;
+        const _navigator = window.navigator as Navigator & { webdriver?: unknown };
         Object.defineProperty(_navigator, 'webdriver', { get: () => undefined });
         // Minimal plugins & languages
         Object.defineProperty(_navigator, 'languages', { get: () => ['en-US', 'en'] });
