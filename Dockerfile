@@ -37,13 +37,14 @@ RUN apt-get update && apt-get install -y \
   libvulkan1 \
   && rm -rf /var/lib/apt/lists/*
 
-# Cache directory for Puppeteer's managed browser
+# Cache directory for Puppeteer's managed browser (not required but harmless)
 ENV PUPPETEER_CACHE_DIR=/usr/local/share/puppeteer
 
 COPY package*.json ./
 RUN npm ci --include=dev
-# Pre-install a Chromium build managed by Puppeteer so executablePath() works
-RUN npx --yes puppeteer browsers install chromium
+
+# Tell Puppeteer to use system Chromium installed via apt
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 COPY . .
 RUN npm run build
