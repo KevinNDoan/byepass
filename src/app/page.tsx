@@ -319,7 +319,7 @@ async function performCapture(url: string, mode: CaptureMode): Promise<CaptureRe
         });
       }
 
-      let html = await page.content();
+      const html = await page.content();
       const snapshot = buildSnapshotHtml(html, url);
       return {
         dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,
