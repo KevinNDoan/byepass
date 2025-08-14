@@ -16,7 +16,7 @@ type CaptureResult = {
   htmlText?: string;
 };
 
-const ARCHIVER_USER_AGENT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/139.0.7258.123 Safari/537.36";
+const ARCHIVER_USER_AGENT = "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chromium/119.0.0.0 Safari/537.36";
 
 function fetchWithTimeout(input: string, init: RequestInit & { timeoutMs?: number } = {}) {
   const { timeoutMs = 5000, ...rest } = init;
@@ -249,7 +249,7 @@ async function performCapture(url: string, mode: CaptureMode): Promise<CaptureRe
     });
     try {
       const page = await browser.newPage();
-      await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+      await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chromium/122.0.0.0 Safari/537.36");
       await page.setExtraHTTPHeaders({
         accept: "text/html,*/*",
         "accept-language": "en-US,en;q=0.9",
@@ -319,7 +319,7 @@ async function performCapture(url: string, mode: CaptureMode): Promise<CaptureRe
         });
       }
 
-      const html = await page.content();
+      let html = await page.content();
       const snapshot = buildSnapshotHtml(html, url);
       return {
         dataUrl: `data:text/html;charset=utf-8,${encodeURIComponent(snapshot)}`,

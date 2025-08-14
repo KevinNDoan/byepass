@@ -8,11 +8,7 @@ export type CaptureResult = {
 };
 
 export const ARCHIVER_USER_AGENT =
-  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/139.0.7258.123 Safari/537.36";
-
-// Use a desktop Linux Chrome UA for browser navigation (matches Docker/Ubuntu-like envs)
-export const BROWSER_USER_AGENT =
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+  "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chromium/139.0.7258.123 Safari/537.36";
 
 export function fetchWithTimeout(
   input: string,
@@ -30,31 +26,6 @@ export function isHttpUrl(input: string): boolean {
   try {
     const u = new URL(input);
     return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
-}
-
-export async function isBlockedByRobots(targetUrl: string): Promise<boolean> {
-  try {
-    const url = new URL(targetUrl);
-    const robotsUrl = `${url.origin}/robots.txt`;
-    const res = await fetchWithTimeout(robotsUrl, {
-      headers: { "user-agent": ARCHIVER_USER_AGENT },
-      timeoutMs: 3000,
-    });
-    if (!res.ok) return false;
-    const txt = await res.text();
-    if (/disallow:\s*\//i.test(txt) && /user-agent:\s*\*/i.test(txt)) {
-      return true;
-    }
-    const path = url.pathname + (url.search || "");
-    const disallowLines = txt
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter((l) => /^disallow:/i.test(l))
-      .map((l) => l.split(":")[1]?.trim() || "");
-    return disallowLines.some((d) => d && path.startsWith(d));
   } catch {
     return false;
   }
@@ -232,7 +203,7 @@ export async function performCapture(
   });
   try {
     const page = await browser.newPage();
-    await page.setUserAgent(BROWSER_USER_AGENT);
+    await page.setUserAgent(ARCHIVER_USER_AGENT);
     await page.setExtraHTTPHeaders({
       accept: "text/html,*/*",
       "accept-language": "en-US,en;q=0.9",
