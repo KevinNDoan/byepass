@@ -7,6 +7,7 @@ import { FullscreenSnapshot } from "@/components/FullscreenSnapshot";
 import Image from "next/image";
 
 type CaptureType = "html" | "screenshot" | "pdf";
+type CaptureMode = "static" | "dynamic";
 
 type CaptureResult = {
   dataUrl: string;
@@ -209,7 +210,20 @@ document.addEventListener('click',function(e){var t=e.target&&e.target.closest?e
   }
 }
 
-async function performCapture(url: string, type: CaptureType): Promise<CaptureResult> {
+function looksLikeJsOrAdblockGate(html: string): boolean {
+  const needles = [
+    /enable\s+javascript/i,
+    /turn\s+on\s+javascript/i,
+    /ad\s*block(er)?/i,
+    /disable\s+ad\s*block/i,
+    /blocked\s+because\s+ad/i,
+    /consent/i,
+    /gateway-content/i,
+  ];
+  return needles.some((re) => re.test(html));
+}
+
+async function performCapture(url: string, mode: CaptureMode): Promise<CaptureResult> {
   try {
     const puppeteer = (await import("puppeteer")).default;
     const { existsSync } = await import("node:fs");
@@ -240,57 +254,71 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
         accept: "text/html,*/*",
         "accept-language": "en-US,en;q=0.9",
       });
-      // Disable JavaScript execution during navigation and rendering
-      await page.setJavaScriptEnabled(false);
+      // Configure JS based on mode
+      await page.setJavaScriptEnabled(mode === "dynamic");
       await page.evaluateOnNewDocument(() => {
         try {
           const _navigator = window.navigator;
           Object.defineProperty(_navigator, 'webdriver', { get: () => undefined });
           Object.defineProperty(_navigator, 'languages', { get: () => ['en-US', 'en'] });
           Object.defineProperty(_navigator, 'platform', { get: () => 'MacIntel' });
+          try {
+            // Prevent service worker registration which may gate content
+            const swContainer = (navigator as unknown as { serviceWorker?: ServiceWorkerContainer }).serviceWorker;
+            if (swContainer) {
+              try {
+                Object.defineProperty(swContainer, 'register', {
+                  value: ((() => Promise.resolve(undefined)) as unknown) as ServiceWorkerContainer['register'],
+                });
+              } catch {}
+            }
+          } catch {}
         } catch {}
       });
       page.setDefaultNavigationTimeout(30000);
       page.setDefaultTimeout(30000);
-      await page.setRequestInterception(true);
-      page.on("request", (request) => {
-        const blocked = new Set([
-          "media",
-          "font",
-          "script",
-          "xhr",
-          "fetch",
-          "websocket",
-          "eventsource",
-          "manifest",
-        ]);
-        if (blocked.has(request.resourceType())) request.abort();
-        else request.continue();
-      });
+      if (mode === "static") {
+        await page.setRequestInterception(true);
+        page.on("request", (request) => {
+          const blocked = new Set([
+            "media",
+            "font",
+            "script",
+            "xhr",
+            "fetch",
+            "websocket",
+            "eventsource",
+            "manifest",
+          ]);
+          if (blocked.has(request.resourceType())) request.abort();
+          else request.continue();
+        });
+      }
       try {
-        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+        await page.goto(url, { waitUntil: mode === "dynamic" ? "domcontentloaded" : "domcontentloaded", timeout: 30000 });
       } catch {
         throw new Error("Navigation timed out or failed");
       }
-      // Give the page a brief moment to settle for more consistent captures
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Give the page time; longer if dynamic
+      await new Promise((resolve) => setTimeout(resolve, mode === "dynamic" ? 2500 : 1000));
+      if (mode === "dynamic") {
+        // Remove common overlays immediately before snapshot to avoid blocking content
+        await page.evaluate(() => {
+          try {
+            const selectors = [
+              '#gateway-content',
+              '[data-testid="adBlocker" i]',
+              '[data-testid*="consent" i]',
+              '[class*="cookie" i]',
+              '[id*="cookie" i]',
+              '[class*="gdpr" i]',
+              '[id*="gdpr" i]'
+            ].join(',');
+            document.querySelectorAll(selectors).forEach((el) => el.remove());
+          } catch {}
+        });
+      }
 
-      if (type === "screenshot") {
-        const buf = await page.screenshot({ fullPage: true, type: "png" });
-        return {
-          dataUrl: `data:image/png;base64,${Buffer.from(buf).toString("base64")}`,
-          contentType: "image/png",
-          fileName: "archive.png",
-        };
-      }
-      if (type === "pdf") {
-        const buf = await page.pdf({ printBackground: true, preferCSSPageSize: true });
-        return {
-          dataUrl: `data:application/pdf;base64,${Buffer.from(buf).toString("base64")}`,
-          contentType: "application/pdf",
-          fileName: "archive.pdf",
-        };
-      }
       const html = await page.content();
       const snapshot = buildSnapshotHtml(html, url);
       return {
@@ -312,14 +340,14 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
 export default async function Home({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
   const sp = await searchParams;
   const urlParam = typeof sp.url === "string" ? sp.url : "";
-  const typeParam = "html"
+  const modeParam = (typeof sp.mode === "string" && (sp.mode === "dynamic" || sp.mode === "static")) ? (sp.mode as CaptureMode) : "static";
 
   let result: CaptureResult | null = null;
   let error: string | null = null;
 
   if (urlParam && isHttpUrl(urlParam)) {
     try {
-      result = await performCapture(urlParam, typeParam);
+      result = await performCapture(urlParam, modeParam);
     } catch (e: unknown) {
       error = e instanceof Error ? e.message : "Capture failed";
       console.error("Capture error", e);

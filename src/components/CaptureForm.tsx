@@ -23,7 +23,10 @@ export function CaptureForm({ defaultUrl }: Props) {
         const normalized = hasScheme ? raw : `https://${raw}`;
         const params = new URLSearchParams();
         params.set("url", normalized);
-        params.set("type", "html");
+         params.set("type", "html");
+         // Add capture mode toggle via hash: ?mode=dynamic for JS-enabled snapshot
+         const wantsDynamic = /[#&]mode=dynamic/i.test(window.location.href);
+         if (wantsDynamic) params.set("mode", "dynamic");
         window.location.href = `/?${params.toString()}`;
       }}
     >
