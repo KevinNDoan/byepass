@@ -10,6 +10,10 @@ export type CaptureResult = {
 export const ARCHIVER_USER_AGENT =
   "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/139.0.7258.123 Safari/537.36";
 
+// Use a desktop Linux Chrome UA for browser navigation (matches Docker/Ubuntu-like envs)
+export const BROWSER_USER_AGENT =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
+
 export function fetchWithTimeout(
   input: string,
   init: RequestInit & { timeoutMs?: number } = {}
@@ -228,10 +232,24 @@ export async function performCapture(
   });
   try {
     const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-    );
+    await page.setUserAgent(BROWSER_USER_AGENT);
+    await page.setExtraHTTPHeaders({
+      accept: "text/html,*/*",
+      "accept-language": "en-US,en;q=0.9",
+    });
     await page.setJavaScriptEnabled(false);
+    // Cloak headless hints and reduce anti-bot triggers
+    await page.evaluateOnNewDocument(() => {
+      try {
+        // Pretend to be not headless
+        // @ts-ignore
+        const _navigator = window.navigator;
+        Object.defineProperty(_navigator, 'webdriver', { get: () => undefined });
+        // Minimal plugins & languages
+        Object.defineProperty(_navigator, 'languages', { get: () => ['en-US', 'en'] });
+        Object.defineProperty(_navigator, 'platform', { get: () => 'MacIntel' });
+      } catch {}
+    });
     page.setDefaultNavigationTimeout(30000);
     page.setDefaultTimeout(30000);
     await page.setRequestInterception(true);

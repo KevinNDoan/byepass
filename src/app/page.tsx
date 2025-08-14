@@ -235,11 +235,22 @@ async function performCapture(url: string, type: CaptureType): Promise<CaptureRe
     });
     try {
       const page = await browser.newPage();
-      await page.setUserAgent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-      );
+      await page.setUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36");
+      await page.setExtraHTTPHeaders({
+        accept: "text/html,*/*",
+        "accept-language": "en-US,en;q=0.9",
+      });
       // Disable JavaScript execution during navigation and rendering
       await page.setJavaScriptEnabled(false);
+      await page.evaluateOnNewDocument(() => {
+        try {
+          // @ts-ignore
+          const _navigator = window.navigator;
+          Object.defineProperty(_navigator, 'webdriver', { get: () => undefined });
+          Object.defineProperty(_navigator, 'languages', { get: () => ['en-US', 'en'] });
+          Object.defineProperty(_navigator, 'platform', { get: () => 'MacIntel' });
+        } catch {}
+      });
       page.setDefaultNavigationTimeout(30000);
       page.setDefaultTimeout(30000);
       await page.setRequestInterception(true);
